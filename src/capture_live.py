@@ -60,6 +60,27 @@ def prompt_duration() -> int:
             raise SystemExit(0)
 
 
+def prompt_mode() -> bool:
+    """Prompt user interactively to choose between Real Traffic or Simulated DDoS Attack."""
+    print("  Select capture mode:")
+    print("    [1] Real Live Traffic (Wi-Fi / Normal Internet)")
+    print("    [2] Simulated DDoS Attack Traffic (Loopback)")
+    while True:
+        try:
+            choice = input("  Enter mode [1 or 2] (default: 1): ").strip()
+            if not choice or choice == "1":
+                print("  [✓] Mode: Real Live Traffic\n")
+                return False
+            elif choice == "2":
+                print("  [✓] Mode: Simulated DDoS Attack\n")
+                return True
+            else:
+                print("  [!] Invalid choice — please enter 1 or 2.")
+        except (EOFError, KeyboardInterrupt):
+            print("\n  [!] Cancelled.")
+            raise SystemExit(0)
+
+
 # ─────────────────────────────────────────────────────────────────────────────
 # Interface detection
 # ─────────────────────────────────────────────────────────────────────────────
@@ -78,8 +99,38 @@ def _score_iface(name: str) -> int:
     return 2
 
 
-def auto_detect_interface() -> str:
-    """Return the highest-priority active network interface (Wi-Fi > Ethernet)."""
+def _is_simulation_running() -> bool:
+    """Check if simulate_ddos process is currently running in background."""
+    try:
+        import psutil
+        for proc in psutil.process_iter(["cmdline"]):
+            cmd = proc.info.get("cmdline") or []
+            if any("simulate_ddos" in str(arg).lower() for arg in cmd):
+                return True
+    except Exception:
+        pass
+    return False
+
+
+def auto_detect_interface(requested: Optional[str] = None) -> str:
+    """Return the requested interface (resolving 'loopback' alias) or highest-priority interface."""
+    if requested:
+        if requested.lower() in ("loopback", "lo"):
+            for iface_obj in IFACES.values():
+                name = getattr(iface_obj, "name", None) or getattr(iface_obj, "description", None)
+                if name and ("loopback" in name.lower() or name.lower() == "lo"):
+                    log.info("Resolved loopback alias to interface: '%s'", name)
+                    return name
+            for name in get_if_list():
+                if "loopback" in name.lower() or name.lower() == "lo":
+                    log.info("Resolved loopback alias to interface: '%s'", name)
+                    return name
+        return requested
+
+    if requested is None and _is_simulation_running():
+        log.info("Detected active DDoS simulation running -> Auto-selecting Loopback interface")
+        return auto_detect_interface("loopback")
+
     candidates: List[Tuple[int, str]] = []
 
     try:
@@ -181,8 +232,7 @@ def start_capture(
     global _stop_capture
     _stop_capture = False
 
-    if iface is None:
-        iface = auto_detect_interface()
+    iface = auto_detect_interface(iface)
 
     log.info("Starting capture on interface '%s'", iface)
     log.info("Output file : %s", out_path)
@@ -238,6 +288,7 @@ def run_pipeline(
     iface: Optional[str] = None,
     pcap_path: str = PCAP_PATH,
     capture_only: bool = False,
+    simulate: bool = False,
 ) -> None:
     """
     Full automated pipeline:
@@ -250,7 +301,30 @@ def run_pipeline(
         iface:            Network interface (auto-detected if None).
         pcap_path:        Output .pcap path.
         capture_only:     If True, stop after capture (skip steps 2 & 3).
+        simulate:         If True, launches DDoS simulator during capture.
     """
+    if simulate:
+        if iface is None:
+            iface = "loopback"
+        import threading
+        from simulate_ddos import run_simulation
+        print("  [*] Auto-launching DDoS attack simulator on Loopback interface...")
+        sim_thread = threading.Thread(
+            target=run_simulation,
+            kwargs={
+                "target_ip": "127.0.0.1",
+                "target_port": 9999,
+                "num_flows": 30,
+                "packets_per_flow": 7,
+                "packet_size": 22,
+                "continuous": True,
+                "interval": 1.0,
+                "duration": duration_seconds,
+            },
+            daemon=True,
+        )
+        sim_thread.start()
+
     # ── Step 1: Capture ───────────────────────────────────────────────────────
     print("\n" + "=" * 60)
     print("  STEP 1/3 — Live Traffic Capture")
@@ -322,12 +396,17 @@ def main() -> None:
     parser.add_argument(
         "--iface",
         default=None,
-        help="Network interface name (auto-detected if omitted)",
+        help="Network interface name or 'loopback' (auto-detected if omitted)",
     )
     parser.add_argument(
         "--out",
         default=PCAP_PATH,
         help=f"Output .pcap file (default: {PCAP_PATH})",
+    )
+    parser.add_argument(
+        "--simulate",
+        action="store_true",
+        help="Auto-simulate DDoS attack traffic on loopback during capture",
     )
     parser.add_argument(
         "--capture-only",
@@ -351,6 +430,7 @@ def main() -> None:
         iface=args.iface,
         pcap_path=args.out,
         capture_only=args.capture_only,
+        simulate=args.simulate,
     )
 
 

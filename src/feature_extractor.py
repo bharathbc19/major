@@ -66,6 +66,7 @@ class _Flow:
     key:      tuple
     start_ts: float
     last_ts:  float
+    init_src: tuple = field(default_factory=tuple)
 
     fwd_pkts: List[_PktRecord] = field(default_factory=list)
     bwd_pkts: List[_PktRecord] = field(default_factory=list)
@@ -264,8 +265,6 @@ class FlowTable:
                    proto: int, ts: float, length: int) -> List[_Flow]:
         """Add packet to the appropriate flow; return any newly completed flows."""
         key = _flow_key(src_ip, dst_ip, src_port, dst_port, proto)
-        a   = (key[0], key[1])
-        is_forward = ((src_ip, src_port) == a)
         completed: List[_Flow] = []
 
         if key in self._flows:
@@ -274,16 +273,18 @@ class FlowTable:
 
             if gap > self._idle_timeout:
                 completed.append(self._flows.pop(key))
-                flow = _Flow(key=key, start_ts=ts, last_ts=ts)
+                flow = _Flow(key=key, start_ts=ts, last_ts=ts, init_src=(src_ip, src_port))
                 self._flows[key] = flow
             elif (ts - flow.start_ts) > self._active_timeout:
                 completed.append(self._flows.pop(key))
-                flow = _Flow(key=key, start_ts=ts, last_ts=ts)
+                flow = _Flow(key=key, start_ts=ts, last_ts=ts, init_src=(src_ip, src_port))
                 self._flows[key] = flow
 
+            is_forward = ((src_ip, src_port) == flow.init_src)
             flow.add_packet(ts, length, is_forward)
         else:
-            flow = _Flow(key=key, start_ts=ts, last_ts=ts)
+            flow = _Flow(key=key, start_ts=ts, last_ts=ts, init_src=(src_ip, src_port))
+            is_forward = True
             flow.add_packet(ts, length, is_forward)
             self._flows[key] = flow
 

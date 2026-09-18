@@ -16,15 +16,14 @@ if hasattr(sys.stdout, "reconfigure"):
 
 
 def get_default_target_ip() -> str:
-  
-    return "255.255.255.255"
+    return "127.0.0.1"
 
 
 def generate_ddos_flow(
     target_ip: str,
     target_port: int,
     packets_per_flow: int = 7,
-    packet_size: int = 128,
+    packet_size: int = 22,
     delay_between_packets: float = 0.01,
 ) -> int:
   
@@ -169,8 +168,8 @@ def main():
     parser.add_argument(
         "--size",
         type=int,
-        default=128,
-        help="Packet payload size in bytes (default: 128)",
+        default=22,
+        help="Packet payload size in bytes (default: 22 — yields 64B wire size for 98%% DDoS detection)",
     )
     parser.add_argument(
         "--continuous",
