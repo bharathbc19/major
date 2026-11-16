@@ -1,0 +1,1025 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Federated DDoS & Fraud Detection Engine</title>
+  <style>
+    :root {
+      --bg: #0f172a;
+      --card-bg: #1e293b;
+      --card-border: #334155;
+      --text: #f8fafc;
+      --text-muted: #94a3b8;
+      --primary: #3b82f6;
+      --primary-hover: #2563eb;
+      --danger: #ef4444;
+      --danger-bg: rgba(239, 68, 68, 0.15);
+      --danger-border: #dc2626;
+      --success: #10b981;
+      --success-bg: rgba(16, 185, 129, 0.15);
+      --success-border: #059669;
+      --warning: #f59e0b;
+      --warning-hover: #d97706;
+      --table-stripe: #1e293b;
+      --table-hover: #2d3d54;
+    }
+
+    @media (prefers-color-scheme: light) {
+      :root {
+        --bg: #f8fafc;
+        --card-bg: #ffffff;
+        --card-border: #e2e8f0;
+        --text: #0f172a;
+        --text-muted: #64748b;
+        --primary: #2563eb;
+        --primary-hover: #1d4ed8;
+        --danger: #dc2626;
+        --danger-bg: #fee2e2;
+        --danger-border: #f87171;
+        --success: #059669;
+        --success-bg: #d1fae5;
+        --success-border: #34d399;
+        --warning: #d97706;
+        --warning-hover: #b45309;
+        --table-stripe: #f8fafc;
+        --table-hover: #f1f5f9;
+      }
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    }
+
+    body {
+      background-color: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 24px;
+    }
+
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 24px;
+      padding-bottom: 16px;
+      border-bottom: 1px solid var(--card-border);
+    }
+
+    .header-title h1 {
+      font-size: 24px;
+      font-weight: 700;
+      letter-spacing: -0.5px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .header-title p {
+      color: var(--text-muted);
+      font-size: 14px;
+      margin-top: 4px;
+    }
+
+    .health-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 12px;
+      border-radius: 9999px;
+      font-size: 12px;
+      font-weight: 600;
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+    }
+
+    .dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--text-muted);
+    }
+    .dot.online { background: var(--success); box-shadow: 0 0 8px var(--success); }
+    .dot.offline { background: var(--danger); }
+    .dot.pulsing {
+      animation: pulse 1.5s infinite;
+    }
+    @keyframes pulse {
+      0% { transform: scale(0.95); opacity: 0.8; }
+      50% { transform: scale(1.2); opacity: 1; }
+      100% { transform: scale(0.95); opacity: 0.8; }
+    }
+
+    .tabs {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 24px;
+      border-bottom: 1px solid var(--card-border);
+    }
+
+    .tab-btn {
+      padding: 10px 20px;
+      background: transparent;
+      border: none;
+      border-bottom: 2px solid transparent;
+      color: var(--text-muted);
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .tab-btn:hover {
+      color: var(--text);
+    }
+
+    .tab-btn.active {
+      color: var(--primary);
+      border-bottom-color: var(--primary);
+    }
+
+    .tab-content {
+      display: none;
+    }
+
+    .tab-content.active {
+      display: block;
+    }
+
+    .card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 12px;
+      padding: 20px;
+      margin-bottom: 24px;
+    }
+
+    .card h2 {
+      font-size: 16px;
+      font-weight: 600;
+      margin-bottom: 16px;
+      color: var(--text);
+    }
+
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 16px;
+      margin-bottom: 20px;
+    }
+
+    .stat-card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 10px;
+      padding: 16px;
+    }
+
+    .stat-label {
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--text-muted);
+      margin-bottom: 6px;
+    }
+
+    .stat-value {
+      font-size: 26px;
+      font-weight: 700;
+      color: var(--text);
+    }
+    .stat-value.danger { color: var(--danger); }
+    .stat-value.success { color: var(--success); }
+
+    .progress-container {
+      margin-bottom: 24px;
+    }
+    .progress-header {
+      display: flex;
+      justify-content: space-between;
+      font-size: 13px;
+      color: var(--text-muted);
+      margin-bottom: 6px;
+    }
+    .progress-bar-bg {
+      height: 12px;
+      background: var(--success-bg);
+      border-radius: 6px;
+      overflow: hidden;
+      display: flex;
+    }
+    .progress-bar-fill {
+      height: 100%;
+      background: var(--danger);
+      transition: width 0.4s ease;
+    }
+
+    .drop-zone {
+      border: 2px dashed var(--card-border);
+      border-radius: 12px;
+      padding: 40px 20px;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.25s ease;
+      background: rgba(255, 255, 255, 0.01);
+    }
+
+    .drop-zone:hover, .drop-zone.dragover {
+      border-color: var(--primary);
+      background: rgba(59, 130, 246, 0.05);
+    }
+
+    .drop-zone.has-file {
+      border-color: var(--success);
+      background: var(--success-bg);
+    }
+
+    .drop-icon {
+      font-size: 38px;
+      margin-bottom: 12px;
+    }
+
+    .file-input-btn {
+      display: inline-block;
+      margin-top: 14px;
+      padding: 8px 18px;
+      background: var(--primary);
+      color: #fff;
+      border-radius: 6px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    .file-input-btn:hover {
+      background: var(--primary-hover);
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 10px 18px;
+      border-radius: 8px;
+      border: none;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .btn-primary { background: var(--primary); color: #fff; }
+    .btn-primary:hover { background: var(--primary-hover); }
+    .btn-danger { background: var(--danger); color: #fff; }
+    .btn-danger:hover { opacity: 0.9; }
+    .btn-warning { background: var(--warning); color: #fff; }
+    .btn-warning:hover { background: var(--warning-hover); }
+    .btn-success { background: var(--success); color: #fff; }
+    .btn-success:hover { opacity: 0.9; }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    .alert-banner {
+      display: none;
+      background: var(--danger-bg);
+      border: 1px solid var(--danger-border);
+      color: var(--danger);
+      padding: 14px 18px;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 600;
+      margin-bottom: 20px;
+      animation: alertFlash 1s infinite alternate;
+    }
+    @keyframes alertFlash {
+      from { box-shadow: 0 0 4px var(--danger); }
+      to { box-shadow: 0 0 16px var(--danger); }
+    }
+
+    .error-box {
+      display: none;
+      background: var(--danger-bg);
+      border: 1px solid var(--danger-border);
+      color: var(--danger);
+      padding: 14px 18px;
+      border-radius: 8px;
+      font-size: 13px;
+      margin-top: 16px;
+      white-space: pre-wrap;
+    }
+
+    .metrics-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+    .metric-item {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 8px;
+      padding: 12px;
+      text-align: center;
+    }
+    .metric-num {
+      font-size: 20px;
+      font-weight: 700;
+      color: var(--primary);
+      margin-top: 4px;
+    }
+
+    .matrix-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      max-width: 400px;
+      margin: 12px auto;
+    }
+    .matrix-cell {
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid var(--card-border);
+      border-radius: 6px;
+      padding: 10px;
+      text-align: center;
+    }
+    .matrix-title { font-size: 11px; color: var(--text-muted); }
+    .matrix-val { font-size: 16px; font-weight: 700; margin-top: 2px; }
+
+    .table-wrapper {
+      max-height: 480px;
+      overflow-y: auto;
+      border: 1px solid var(--card-border);
+      border-radius: 8px;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+      text-align: left;
+    }
+    th {
+      background: var(--card-bg);
+      position: sticky;
+      top: 0;
+      padding: 10px 14px;
+      font-weight: 600;
+      color: var(--text-muted);
+      border-bottom: 1px solid var(--card-border);
+      z-index: 1;
+    }
+    td {
+      padding: 9px 14px;
+      border-bottom: 1px solid var(--card-border);
+    }
+    tr:nth-child(even) { background-color: var(--table-stripe); }
+    tr:hover { background-color: var(--table-hover); }
+
+    tr.row-attack {
+      background-color: var(--danger-bg);
+    }
+
+    .badge {
+      display: inline-block;
+      padding: 3px 8px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+    }
+    .badge-ddos {
+      background: var(--danger-bg);
+      color: var(--danger);
+      border: 1px solid var(--danger-border);
+    }
+    .badge-benign {
+      background: var(--success-bg);
+      color: var(--success);
+      border: 1px solid var(--success-border);
+    }
+
+    .form-group {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      align-items: center;
+      margin-bottom: 16px;
+    }
+    .input-text {
+      padding: 8px 12px;
+      border-radius: 6px;
+      border: 1px solid var(--card-border);
+      background: var(--card-bg);
+      color: var(--text);
+      font-size: 14px;
+    }
+
+    .spinner {
+      display: inline-block;
+      width: 16px;
+      height: 16px;
+      border: 2px solid rgba(255, 255, 255, 0.3);
+      border-radius: 50%;
+      border-top-color: #fff;
+      animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <div class="header-title">
+        <h1>🛡️ Federated Fraud & DDoS Detection Engine</h1>
+        <p>Federated FedAvg Model Inference & Real-Time Network Packet Inspection</p>
+      </div>
+      <div class="health-badge" id="health-badge">
+        <span class="dot" id="health-dot"></span>
+        <span id="health-text">Checking health...</span>
+      </div>
+    </header>
+
+    <div class="tabs">
+      <button class="tab-btn active" id="tab-csv-btn" onclick="switchTab('csv')">CSV Batch Predictor</button>
+      <button class="tab-btn" id="tab-live-btn" onclick="switchTab('live')">Live Stream Detection</button>
+    </div>
+
+    <!-- TAB 1: CSV Upload -->
+    <div class="tab-content active" id="tab-csv">
+      <div class="card">
+        <h2>Upload Traffic Flow CSV</h2>
+        <div class="drop-zone" id="drop-zone" onclick="triggerFileInput(event)">
+          <div class="drop-icon" id="drop-icon">📁</div>
+          <p id="drop-text"><strong>Drag & Drop your CSV file here</strong>, or click to browse</p>
+          <span class="file-input-btn" id="drop-btn-label">Select File</span>
+          <input type="file" id="file-input" accept=".csv" style="display: none" onchange="handleFileSelect(event)">
+        </div>
+
+        <div id="file-selected-info" style="display: none; margin-top: 16px; justify-content: space-between; align-items: center; background: rgba(255,255,255,0.02); padding: 12px 16px; border-radius: 8px; border: 1px solid var(--card-border);">
+          <div>
+            <span style="color: var(--success); font-weight: 700; margin-right: 8px;">✓ Ready</span>
+            <span id="selected-file-name" style="font-size: 14px; font-weight: 600;"></span>
+          </div>
+          <button class="btn btn-primary" id="analyze-btn" onclick="submitCSV()">
+            <span id="btn-text">🚀 Analyze CSV</span>
+            <span class="spinner" id="btn-spinner" style="display: none;"></span>
+          </button>
+        </div>
+
+        <div class="error-box" id="csv-error-box"></div>
+      </div>
+
+      <div id="csv-results" style="display: none;">
+        <div class="stats-grid">
+          <div class="stat-card">
+            <div class="stat-label">Total Flows</div>
+            <div class="stat-value" id="res-total">0</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">DDoS Detected</div>
+            <div class="stat-value danger" id="res-attacks">0</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Benign Flows</div>
+            <div class="stat-value success" id="res-benign">0</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Avg Probability</div>
+            <div class="stat-value" id="res-confidence">0.00</div>
+          </div>
+        </div>
+
+        <div class="card progress-container">
+          <div class="progress-header">
+            <span>DDoS Share: <strong id="res-attack-pct">0%</strong></span>
+            <span>Benign Share: <strong id="res-benign-pct">100%</strong></span>
+          </div>
+          <div class="progress-bar-bg">
+            <div class="progress-bar-fill" id="res-progress-fill" style="width: 0%;"></div>
+          </div>
+        </div>
+
+        <div class="card" id="metrics-card" style="display: none;">
+          <h2>Ground Truth Performance Evaluation</h2>
+          <div class="metrics-grid">
+            <div class="metric-item">
+              <div class="stat-label">Accuracy</div>
+              <div class="metric-num" id="metric-acc">0%</div>
+            </div>
+            <div class="metric-item">
+              <div class="stat-label">Precision</div>
+              <div class="metric-num" id="metric-prec">0%</div>
+            </div>
+            <div class="metric-item">
+              <div class="stat-label">Recall</div>
+              <div class="metric-num" id="metric-rec">0%</div>
+            </div>
+            <div class="metric-item">
+              <div class="stat-label">F1-Score</div>
+              <div class="metric-num" id="metric-f1">0%</div>
+            </div>
+          </div>
+
+          <div class="matrix-grid">
+            <div class="matrix-cell">
+              <div class="matrix-title">True Positives (DDoS Caught)</div>
+              <div class="matrix-val" style="color:var(--danger)" id="matrix-tp">0</div>
+            </div>
+            <div class="matrix-cell">
+              <div class="matrix-title">False Positives (False Alarms)</div>
+              <div class="matrix-val" id="matrix-fp">0</div>
+            </div>
+            <div class="matrix-cell">
+              <div class="matrix-title">False Negatives (Missed)</div>
+              <div class="matrix-val" id="matrix-fn">0</div>
+            </div>
+            <div class="matrix-cell">
+              <div class="matrix-title">True Negatives (Benign Pass)</div>
+              <div class="matrix-val" style="color:var(--success)" id="matrix-tn">0</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <h2>Flow Predictions Preview (First 500 rows)</h2>
+          <div class="table-wrapper">
+            <table>
+              <thead>
+                <tr>
+                  <th style="width: 80px;">Row #</th>
+                  <th>DDoS Probability</th>
+                  <th style="width: 140px;">Classification</th>
+                </tr>
+              </thead>
+              <tbody id="csv-table-body"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 2: Live Detection -->
+    <div class="tab-content" id="tab-live">
+      <div class="alert-banner" id="live-alert-banner">
+        🚨 ATTACK ALERT: Active DDoS flood traffic detected on interface!
+      </div>
+
+      <div class="card">
+        <h2>Live Sniffing & Inspection Controls</h2>
+        <div class="form-group">
+          <div style="display: flex; align-items: center; gap: 6px;">
+            <label for="live-iface-input" style="font-size: 13px; font-weight: 600; color: var(--text-muted);">Interface:</label>
+            <select id="live-iface-input" class="input-text" style="max-width: 260px;">
+              <option value="" selected>Default (Wi-Fi / Physical Adapter)</option>
+              <option value="loopback">Loopback (Local 127.0.0.1 Simulator)</option>
+            </select>
+          </div>
+          
+          <div style="display: flex; align-items: center; gap: 6px;">
+            <label for="live-threshold-select" style="font-size: 13px; font-weight: 600; color: var(--text-muted);">Threshold:</label>
+            <select id="live-threshold-select" class="input-text">
+              <option value="0.80" selected>0.80 (Live Browsing - Recommended)</option>
+              <option value="0.90">0.90 (Heavy Floods Only)</option>
+              <option value="0.50">0.50 (CICIDS Baseline)</option>
+            </select>
+          </div>
+
+          <button class="btn btn-success" id="live-start-btn" onclick="startLiveCapture()">▶ Start Capture</button>
+          <button class="btn btn-danger" id="live-stop-btn" onclick="stopLiveCapture()" disabled>⏹ Stop Capture</button>
+          <button class="btn btn-warning" id="live-restart-btn" onclick="restartLiveCapture()" title="Restart capture and clear counters (or press 'R')">🔄 Restart (R)</button>
+
+          <div style="margin-left: 8px; display: flex; align-items: center; gap: 6px;">
+            <span class="dot" id="live-status-dot"></span>
+            <span id="live-status-text" style="font-size: 13px; font-weight: 600; color: var(--text-muted)">Idle</span>
+          </div>
+        </div>
+        <p style="font-size: 12px; color: var(--text-muted); margin-top: -6px;">
+          🌐 <strong>Testing Simulated DDoS:</strong> When sniffing <strong>Default (Wi-Fi)</strong>, run <code>python src/simulate_ddos.py --target 255.255.255.255 --continuous --interval 1</code> so packets hit your Wi-Fi card. Or select <strong>Loopback</strong> in the dropdown above to capture local <code>127.0.0.1</code> attacks directly.
+        </p>
+        <div class="error-box" id="live-error-box"></div>
+      </div>
+
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-label">Flows Classified</div>
+          <div class="stat-value" id="live-total">0</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">DDoS Incursions</div>
+          <div class="stat-value danger" id="live-attacks">0</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Benign Traffic</div>
+          <div class="stat-value success" id="live-benign">0</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Recent Classified Network Flows (Newest first, max 200)</h2>
+        <div class="table-wrapper">
+          <table>
+            <thead>
+              <tr>
+                <th style="width: 90px;">Time</th>
+                <th>Source</th>
+                <th>Destination</th>
+                <th style="width: 120px;">Protocol</th>
+                <th style="width: 80px;">Packets</th>
+                <th style="width: 110px;">Probability</th>
+                <th style="width: 120px;">Verdict</th>
+              </tr>
+            </thead>
+            <tbody id="live-table-body">
+              <tr id="live-empty-row">
+                <td colspan="7" style="text-align: center; color: var(--text-muted); padding: 30px;">
+                  Waiting for network packets... Start capture and run <code>python src/simulate_ddos.py --continuous --interval 1</code> in another terminal.
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    function switchTab(tab) {
+      document.getElementById('tab-csv-btn').classList.toggle('active', tab === 'csv');
+      document.getElementById('tab-live-btn').classList.toggle('active', tab === 'live');
+      document.getElementById('tab-csv').classList.toggle('active', tab === 'csv');
+      document.getElementById('tab-live').classList.toggle('active', tab === 'live');
+    }
+
+    async function checkHealth() {
+      try {
+        const res = await fetch('/api/health');
+        const data = await res.json();
+        const dot = document.getElementById('health-dot');
+        const text = document.getElementById('health-text');
+        if (data.status === 'healthy') {
+          dot.className = 'dot online';
+          text.textContent = 'Model & Scaler Online';
+        } else {
+          dot.className = 'dot offline';
+          text.textContent = 'Degraded';
+        }
+      } catch (e) {
+        document.getElementById('health-dot').className = 'dot offline';
+        document.getElementById('health-text').textContent = 'Backend Offline';
+      }
+    }
+    checkHealth();
+    setInterval(checkHealth, 10000);
+
+    const dropZone = document.getElementById('drop-zone');
+    const fileInput = document.getElementById('file-input');
+    let selectedFile = null;
+
+    function triggerFileInput(e) {
+      fileInput.click();
+    }
+
+    ['dragenter', 'dragover'].forEach(name => {
+      dropZone.addEventListener(name, (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        dropZone.classList.add('dragover');
+      });
+    });
+
+    ['dragleave', 'drop'].forEach(name => {
+      dropZone.addEventListener(name, (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        dropZone.classList.remove('dragover');
+      });
+    });
+
+    dropZone.addEventListener('drop', (e) => {
+      if (e.dataTransfer && e.dataTransfer.files.length) {
+        handleFile(e.dataTransfer.files[0]);
+      }
+    });
+
+    function handleFileSelect(e) {
+      if (e.target.files && e.target.files.length) {
+        handleFile(e.target.files[0]);
+      }
+    }
+
+    function handleFile(file) {
+      if (!file.name.toLowerCase().endsWith('.csv')) {
+        showCSVError('Please select a valid .csv file.');
+        return;
+      }
+      selectedFile = file;
+      hideCSVError();
+
+      dropZone.classList.add('has-file');
+      document.getElementById('drop-icon').textContent = '📄';
+      document.getElementById('drop-text').innerHTML = `
+        <strong style="color:var(--success); font-size:16px;">${file.name}</strong><br>
+        <span style="color:var(--text-muted); font-size:13px;">Size: ${(file.size / 1024 / 1024).toFixed(2)} MB &bull; Ready to analyze</span>
+      `;
+      document.getElementById('drop-btn-label').textContent = 'Change File';
+
+      const infoBox = document.getElementById('file-selected-info');
+      infoBox.style.display = 'flex';
+      document.getElementById('selected-file-name').textContent = `${file.name} (${(file.size / 1024 / 1024).toFixed(2)} MB)`;
+
+      fileInput.value = '';
+    }
+
+    function showCSVError(msg) {
+      const box = document.getElementById('csv-error-box');
+      box.textContent = msg;
+      box.style.display = 'block';
+    }
+
+    function hideCSVError() {
+      document.getElementById('csv-error-box').style.display = 'none';
+    }
+
+    async function submitCSV() {
+      if (!selectedFile) return;
+
+      const btn = document.getElementById('analyze-btn');
+      const spinner = document.getElementById('btn-spinner');
+      const btnText = document.getElementById('btn-text');
+      btn.disabled = true;
+      spinner.style.display = 'inline-block';
+      btnText.textContent = 'Analyzing...';
+      hideCSVError();
+
+      document.getElementById('drop-text').innerHTML = `
+        <span class="spinner" style="vertical-align:middle; margin-right:8px;"></span>
+        <strong>Analyzing flows with Federated Model...</strong><br>
+        <span style="color:var(--text-muted); font-size:13px;">Scaling features and calculating predictions. Please wait...</span>
+      `;
+
+      const formData = new FormData();
+      formData.append('file', selectedFile);
+
+      try {
+        const response = await fetch('/api/predict-csv', {
+          method: 'POST',
+          body: formData
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+          let errText = data.detail;
+          if (typeof data.detail === 'object') {
+            errText = data.detail.message || JSON.stringify(data.detail);
+            if (data.detail.missing_columns) {
+              errText += '\nMissing Columns:\n  • ' + data.detail.missing_columns.join('\n  • ');
+            }
+          }
+          showCSVError(errText || 'CSV processing failed.');
+          document.getElementById('csv-results').style.display = 'none';
+          document.getElementById('drop-text').innerHTML = `
+            <strong style="color:var(--danger)">Analysis Failed</strong><br>
+            <span style="font-size:13px;">Please check the error below or choose another CSV.</span>
+          `;
+          return;
+        }
+
+        renderCSVResults(data);
+        document.getElementById('drop-text').innerHTML = `
+          <strong style="color:var(--success)">✓ Analysis Complete!</strong><br>
+          <span style="font-size:13px; color:var(--text-muted);">Classified ${data.total.toLocaleString()} flows from ${selectedFile.name}</span>
+        `;
+
+        setTimeout(() => {
+          document.getElementById('csv-results').scrollIntoView({ behavior: 'smooth' });
+        }, 150);
+
+      } catch (err) {
+        showCSVError('Network or server error occurred: ' + err.message);
+      } finally {
+        btn.disabled = false;
+        spinner.style.display = 'none';
+        btnText.textContent = '🚀 Analyze CSV';
+      }
+    }
+
+    function renderCSVResults(data) {
+      document.getElementById('csv-results').style.display = 'block';
+      document.getElementById('res-total').textContent = data.total.toLocaleString();
+      document.getElementById('res-attacks').textContent = data.attacks.toLocaleString();
+      document.getElementById('res-benign').textContent = data.benign.toLocaleString();
+      document.getElementById('res-confidence').textContent = data.avg_confidence.toFixed(4);
+
+      const atkPct = data.attack_percentage;
+      const benPct = (100 - atkPct).toFixed(2);
+      document.getElementById('res-attack-pct').textContent = atkPct + '%';
+      document.getElementById('res-benign-pct').textContent = benPct + '%';
+      document.getElementById('res-progress-fill').style.width = atkPct + '%';
+
+      if (data.metrics) {
+        document.getElementById('metrics-card').style.display = 'block';
+        document.getElementById('metric-acc').textContent = data.metrics.accuracy + '%';
+        document.getElementById('metric-prec').textContent = data.metrics.precision + '%';
+        document.getElementById('metric-rec').textContent = data.metrics.recall + '%';
+        document.getElementById('metric-f1').textContent = data.metrics.f1 + '%';
+
+        document.getElementById('matrix-tp').textContent = data.metrics.tp.toLocaleString();
+        document.getElementById('matrix-tn').textContent = data.metrics.tn.toLocaleString();
+        document.getElementById('matrix-fp').textContent = data.metrics.fp.toLocaleString();
+        document.getElementById('matrix-fn').textContent = data.metrics.fn.toLocaleString();
+      } else {
+        document.getElementById('metrics-card').style.display = 'none';
+      }
+
+      const tbody = document.getElementById('csv-table-body');
+      tbody.innerHTML = '';
+      (data.first_500_rows || []).forEach(row => {
+        const tr = document.createElement('tr');
+        if (row.verdict === 'DDoS') tr.className = 'row-attack';
+        const badgeClass = row.verdict === 'DDoS' ? 'badge-ddos' : 'badge-benign';
+        tr.innerHTML = `
+          <td><strong>#${row.row}</strong></td>
+          <td>${row.probability.toFixed(4)}</td>
+          <td><span class="badge ${badgeClass}">${row.verdict}</span></td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    // Live Detection Logic (SSE)
+    let sseSource = null;
+    let liveAlertTimeout = null;
+
+    function initSSE() {
+      if (sseSource) sseSource.close();
+      sseSource = new EventSource('/api/live/stream');
+
+      sseSource.onmessage = (event) => {
+        try {
+          const payload = JSON.parse(event.data);
+          if (payload.counters) {
+            document.getElementById('live-total').textContent = payload.counters.total.toLocaleString();
+            document.getElementById('live-attacks').textContent = payload.counters.attacks.toLocaleString();
+            document.getElementById('live-benign').textContent = payload.counters.benign.toLocaleString();
+          }
+
+          if (payload.last_error) {
+            showLiveError(payload.last_error);
+          }
+
+          if (payload.event !== 'heartbeat' && payload.src) {
+            addLiveRow(payload);
+            if (payload.verdict === 'DDoS') {
+              triggerDDoSAlert();
+            }
+          }
+        } catch (e) {
+          console.error('SSE JSON error', e);
+        }
+      };
+    }
+    initSSE();
+
+    function triggerDDoSAlert() {
+      const banner = document.getElementById('live-alert-banner');
+      banner.style.display = 'block';
+      clearTimeout(liveAlertTimeout);
+      liveAlertTimeout = setTimeout(() => {
+        banner.style.display = 'none';
+      }, 5000);
+    }
+
+    function addLiveRow(flow) {
+      const tbody = document.getElementById('live-table-body');
+      const emptyRow = document.getElementById('live-empty-row');
+      if (emptyRow) emptyRow.remove();
+
+      const tr = document.createElement('tr');
+      if (flow.verdict === 'DDoS') tr.className = 'row-attack';
+      const badgeClass = flow.verdict === 'DDoS' ? 'badge-ddos' : 'badge-benign';
+
+      tr.innerHTML = `
+        <td>${flow.time}</td>
+        <td><code>${flow.src}</code></td>
+        <td><code>${flow.dst}</code></td>
+        <td><strong style="color:var(--text);">${flow.proto}</strong></td>
+        <td>${flow.packets}</td>
+        <td>${flow.probability.toFixed(4)}</td>
+        <td><span class="badge ${badgeClass}">${flow.verdict}</span></td>
+      `;
+
+      tbody.insertBefore(tr, tbody.firstChild);
+
+      while (tbody.children.length > 200) {
+        tbody.removeChild(tbody.lastChild);
+      }
+    }
+
+    function showLiveError(msg) {
+      const box = document.getElementById('live-error-box');
+      box.textContent = msg;
+      box.style.display = 'block';
+      document.getElementById('live-status-dot').className = 'dot offline';
+      document.getElementById('live-status-text').textContent = 'Error';
+    }
+
+    function hideLiveError() {
+      document.getElementById('live-error-box').style.display = 'none';
+    }
+
+    async function startLiveCapture() {
+      hideLiveError();
+      const iface = document.getElementById('live-iface-input').value.trim() || null;
+      const thresholdVal = parseFloat(document.getElementById('live-threshold-select').value) || 0.80;
+
+      try {
+        const res = await fetch('/api/live/start', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ iface: iface, threshold: thresholdVal })
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          let err = data.detail ? (data.detail.message || JSON.stringify(data.detail)) : 'Failed to start capture';
+          showLiveError(err);
+          return;
+        }
+
+        document.getElementById('live-start-btn').disabled = true;
+        document.getElementById('live-stop-btn').disabled = false;
+        document.getElementById('live-status-dot').className = 'dot online pulsing';
+        document.getElementById('live-status-text').textContent = `Sniffing (thresh: ${thresholdVal})`;
+      } catch (err) {
+        showLiveError('Server error: ' + err.message);
+      }
+    }
+
+    async function stopLiveCapture() {
+      try {
+        await fetch('/api/live/stop', { method: 'POST' });
+        document.getElementById('live-start-btn').disabled = false;
+        document.getElementById('live-stop-btn').disabled = true;
+        document.getElementById('live-status-dot').className = 'dot';
+        document.getElementById('live-status-text').textContent = 'Stopped';
+      } catch (err) {
+        console.error(err);
+      }
+    }
+
+    async function restartLiveCapture() {
+      hideLiveError();
+
+      // Reset counters and clear live table in UI
+      document.getElementById('live-total').textContent = '0';
+      document.getElementById('live-attacks').textContent = '0';
+      document.getElementById('live-benign').textContent = '0';
+      const tbody = document.getElementById('live-table-body');
+      tbody.innerHTML = `
+        <tr id="live-empty-row">
+          <td colspan="7" style="text-align: center; color: var(--text-muted); padding: 30px;">
+            Capture reset. Click <strong>▶ Start Capture</strong> to begin monitoring.
+          </td>
+        </tr>
+      `;
+
+      // Set buttons and status back to Idle state — waiting for user to click Start Capture
+      document.getElementById('live-start-btn').disabled = false;
+      document.getElementById('live-stop-btn').disabled = true;
+      document.getElementById('live-status-dot').className = 'dot';
+      document.getElementById('live-status-text').textContent = 'Idle (Reset)';
+
+      try {
+        const res = await fetch('/api/live/reset', { method: 'POST' });
+        const data = await res.json();
+        if (!res.ok) {
+          showLiveError(data.detail ? (data.detail.message || JSON.stringify(data.detail)) : 'Failed to reset capture');
+        }
+      } catch (err) {
+        showLiveError('Server error: ' + err.message);
+      }
+    }
+
+    // Keyboard shortcut: Press 'R' or 'r' on the Live tab to restart capture
+    window.addEventListener('keydown', (e) => {
+      if (e.key === 'r' || e.key === 'R') {
+        const activeTab = document.getElementById('tab-live');
+        const activeTag = document.activeElement ? document.activeElement.tagName : '';
+        const isInputField = ['INPUT', 'TEXTAREA', 'SELECT'].includes(activeTag);
+        if (activeTab && activeTab.classList.contains('active') && !isInputField) {
+          e.preventDefault();
+          restartLiveCapture();
+        }
+      }
+    });
+  </script>
+</body>
+</html>

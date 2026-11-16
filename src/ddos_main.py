@@ -7,21 +7,16 @@ Usage:
     python ddos_main.py --rounds 15 --clients 3
 """
 
-import os
 import argparse
 from ddos_detector import run_ddos_detection
 
-_SRC_DIR = os.path.dirname(os.path.abspath(__file__))
-_PROJECT_DIR = os.path.dirname(_SRC_DIR)
-_DEFAULT_DATA = os.path.join(_PROJECT_DIR, "data", "Friday-WorkingHours-Afternoon-DDos.pcap_ISCX.csv")
-
 def main():
     parser = argparse.ArgumentParser(
-        description="DDoS Detection — Federated Learning (CICIDS2017)"
+        description="DDoS Detection  Federated Learning (CICIDS2017)"
     )
     parser.add_argument(
         "--data",
-        default=_DEFAULT_DATA,
+        default="../data/Friday-WorkingHours-Afternoon-DDos.pcap_ISCX.csv",
         help="Path to CICIDS2017 DDoS CSV file"
     )
     parser.add_argument("--clients",   type=int, default=3,   help="Number of federated clients (default: 3)")
@@ -38,3 +33,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
